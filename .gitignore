@@ -1,0 +1,23 @@
+# Temporary files
+*.tmp
+*.log
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
+
+# Git worktrees
+.worktrees/
+
+# Test files
+test/
+tests/
+*.test.sh
