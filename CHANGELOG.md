@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-09-04
+
+### Added
+- Added `install-arch.sh` for Arch-based development machines.
+- Added `install-ubuntu.sh` for Ubuntu/Debian-based development machines.
+- Added `install.sh` as a distro-detecting dispatcher.
+- Added `--dry-run` support to review commands before making system changes.
+- Added audited tool coverage for `neovim`, `mise`, `direnv`, `shellcheck`, `shfmt`, `terragrunt`, Brave, kubecolor, krew, database CLIs, optional virtualization tools, and pipx-managed Python CLIs.
+
+### Changed
+- Replaced the broken mixed-distro monolith with focused distro-specific installers.
+- Updated Arch installs to prefer official `pacman` packages and reserve AUR helpers for AUR-only tools.
+- Updated Ubuntu installs to use vendor repositories for Docker, GitHub CLI, Google Cloud CLI, Terraform, VS Code, and Brave.
+
+### Fixed
+- Fixed shell syntax breakages in the previous `install.sh` implementation.
+- Fixed Ubuntu `fd`/`bat` command-name differences by adding local shims when needed.
+
 ## [2.1.0] - 2025-10-19
 
 ### Added

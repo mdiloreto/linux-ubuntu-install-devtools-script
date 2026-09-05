@@ -36,7 +36,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
    - Add entry to CHANGELOG.md
 4. **Test your changes**:
    - Test in a VM or container
-   - Verify no syntax errors: `bash -n install-ubuntu.sh`
+   - Verify no syntax errors: `bash -n install.sh && bash -n install-ubuntu.sh && bash -n install-arch.sh`
 5. **Commit your changes**:
    - Use clear commit messages
    - Reference issues when applicable
@@ -79,7 +79,7 @@ install_example_tool() {
 
 Before submitting a PR:
 - Test on a clean VM or container
-- Verify syntax: `bash -n install-ubuntu.sh`
+- Verify syntax: `bash -n install.sh && bash -n install-ubuntu.sh && bash -n install-arch.sh`
 - Test on both Debian and Arch if possible
 - Check for idempotency (running script twice shouldn't break)
 
