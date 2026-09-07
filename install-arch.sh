@@ -3,6 +3,7 @@ set -u -o pipefail
 
 ASSUME_YES=false
 DRY_RUN=false
+SKIP_SHELL_CONFIG=false
 FAILED=()
 SKIPPED=()
 IS_OMARCHY=false
@@ -34,6 +35,7 @@ Install a practical Linux development toolchain on Arch-based systems.
 OPTIONS:
     -y, --yes, --no-confirm    Skip confirmation prompts
     --dry-run                  Print planned commands without running them
+    --skip-shell-config        Do not modify shell startup files or login shell
     -h, --help                 Show this help message
 
 EOF
@@ -44,6 +46,7 @@ parse_args() {
         case "$1" in
             -y|--yes|--no-confirm) ASSUME_YES=true ;;
             --dry-run) DRY_RUN=true ;;
+            --skip-shell-config) SKIP_SHELL_CONFIG=true ;;
             -h|--help) usage; exit 0 ;;
             *) log_error "Unknown option: $1"; usage; exit 1 ;;
         esac
@@ -150,7 +153,7 @@ install_languages() {
     fi
 
     if command_exists pipx; then
-        run python -m pipx ensurepath || true
+        $SKIP_SHELL_CONFIG || run python -m pipx ensurepath || true
         for tool in pipenv poetry black ruff pytest ipython; do
             command_exists "$tool" || run pipx install "$tool" || true
         done
@@ -183,8 +186,10 @@ install_krew() {
         return
     fi
     run_shell "tmpdir=\$(mktemp -d) && cd \"\$tmpdir\" && os=\$(uname | tr '[:upper:]' '[:lower:]') && arch=\$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/') && krew=krew-\${os}_\${arch} && curl -fsSLO https://github.com/kubernetes-sigs/krew/releases/latest/download/\${krew}.tar.gz && tar zxvf \${krew}.tar.gz >/dev/null && ./\${krew} install krew && rm -rf \"\$tmpdir\""
-    append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.zshrc"
-    append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.bashrc"
+    if ! $SKIP_SHELL_CONFIG; then
+        append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.zshrc"
+        append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.bashrc"
+    fi
 }
 
 install_databases() {
@@ -259,7 +264,11 @@ summary() {
         log_error "Failures: ${FAILED[*]}"
         exit 1
     fi
-    log_info "Open a new login session to use zsh and refresh Docker group membership."
+    if $SKIP_SHELL_CONFIG; then
+        log_info "Log out/in to refresh Docker group membership."
+    else
+        log_info "Open a new login session to use zsh and refresh Docker group membership."
+    fi
 }
 
 main() {
@@ -275,7 +284,11 @@ main() {
     install_databases
     install_desktop_tools
     install_virtualization
-    configure_shell
+    if $SKIP_SHELL_CONFIG; then
+        log_info "Skipping shell configuration"
+    else
+        configure_shell
+    fi
     summary
 }
 

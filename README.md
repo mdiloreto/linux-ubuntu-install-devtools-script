@@ -9,6 +9,7 @@ Install a practical Linux development environment on Ubuntu/Debian and Arch-base
 - `install-arch.sh` for Arch, Manjaro, EndeavourOS, Garuda Linux, and Omarchy
 - `-y`/`--yes` unattended mode
 - `--dry-run` mode to review commands before changing the system
+- `--skip-shell-config` mode for systems with externally managed shell files
 - Idempotent shell alias additions and package installs where package managers support it
 
 ## Quick Start
@@ -123,13 +124,14 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 ```bash
 ./install.sh -y            # unattended install
 ./install.sh --dry-run     # print commands without running them
+./install.sh --skip-shell-config # preserve shell startup files and login shell
 ./install.sh --help        # usage
 ```
 
 ## Post-Install
 
-1. On Arch-based systems, open a new login session to start zsh, or run `exec zsh` in the current terminal.
-2. On Ubuntu/Debian, restart the terminal or source the configured shell file.
+1. Unless `--skip-shell-config` was used, open a new login session to start zsh on Arch-based systems, or restart the terminal on Ubuntu/Debian.
+2. With `--skip-shell-config`, add any required PATH entries and shell integrations through your external configuration manager.
 3. Log out and back in so Docker group membership takes effect.
 4. Authenticate tools as needed: `gh auth login`, `az login`, `aws configure`, `gcloud auth login`.
 5. Review optional tools skipped because a package or AUR helper was unavailable.

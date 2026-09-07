@@ -16,6 +16,7 @@ Linux DevTools installer dispatcher.
 OPTIONS:
     -y, --yes, --no-confirm    Skip confirmation prompts
     --dry-run                  Print planned commands without running them
+    --skip-shell-config        Do not modify shell startup files or login shell
     -h, --help                 Show this help message
 
 EOF
