@@ -85,7 +85,7 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 - MySQL client
 - PostgreSQL client (`psql`)
 - Redis CLI
-- MongoDB Compass/mongosh when available for the distro
+- mongosh when available for the distro
 
 ### Optional Virtualization
 
@@ -113,7 +113,8 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 ### Arch
 
 - Uses official `pacman` packages first.
-- Uses `yay` or `paru` only for AUR-only packages: `google-cloud-cli`, `kubecolor`, `visual-studio-code-bin`, `postman-bin`, `brave-bin`, `mongosh-bin`, `mongodb-compass`, and `vagrant`.
+- Uses `yay` or `paru` only for AUR-only packages: `google-cloud-cli`, `kubecolor`, `visual-studio-code-bin`, `postman-bin`, `brave-bin`, `mongosh-bin`, and `vagrant`.
+- Does not install MongoDB Compass automatically because its AUR dependency chain builds Electron from Chromium sources.
 - Installs Python CLI tools through `pipx` to comply with externally managed Python environments.
 - Enables Docker with `systemctl enable --now docker` and adds the current user to the Docker group.
 - Configures `.zshrc` and sets zsh as the current user's default login shell.

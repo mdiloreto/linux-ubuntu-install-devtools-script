@@ -195,7 +195,7 @@ install_krew() {
 install_databases() {
     log_info "Installing database clients"
     pacman_install mariadb-clients postgresql-libs redis
-    aur_install mongosh-bin mongodb-compass
+    aur_install mongosh-bin
 }
 
 install_virtualization() {
