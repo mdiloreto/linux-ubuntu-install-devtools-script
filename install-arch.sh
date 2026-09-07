@@ -5,6 +5,13 @@ ASSUME_YES=false
 DRY_RUN=false
 FAILED=()
 SKIPPED=()
+IS_OMARCHY=false
+OMARCHY_ZSH_READY=false
+
+if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+    [[ "${ID:-}" == "omarchy" ]] && IS_OMARCHY=true
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -123,8 +130,14 @@ install_core_tools() {
         openssh openssl ca-certificates gnupg \
         jq yq ripgrep fd fzf tree lsd bat \
         vim neovim nano zsh tmux screen \
-        htop btop ncdu tldr net-tools bind traceroute direnv mise \
+        htop btop ncdu tldr net-tools bind traceroute direnv \
         shellcheck shfmt
+
+    if $IS_OMARCHY; then
+        pacman_install omarchy-zsh && OMARCHY_ZSH_READY=true
+    else
+        pacman_install mise
+    fi
 }
 
 install_languages() {
@@ -200,8 +213,16 @@ install_desktop_tools() {
 
 configure_shell() {
     local shell_rc="$HOME/.zshrc"
-    [[ -f "$shell_rc" ]] || shell_rc="$HOME/.bashrc"
     log_info "Adding shell quality-of-life aliases to $shell_rc"
+    if $IS_OMARCHY; then
+        if ! $OMARCHY_ZSH_READY; then
+            log_warning "Keeping the current login shell because omarchy-zsh is unavailable"
+            return
+        fi
+        append_line_once '[[ -r /usr/share/omarchy/default/bash/env-bootstrap ]] && source /usr/share/omarchy/default/bash/env-bootstrap' "$shell_rc"
+        append_line_once '[[ -r /usr/share/omarchy-zsh/shell/zoptions ]] && source /usr/share/omarchy-zsh/shell/zoptions' "$shell_rc"
+        append_line_once '[[ -r /usr/share/omarchy-zsh/shell/all ]] && source /usr/share/omarchy-zsh/shell/all' "$shell_rc"
+    fi
     append_line_once '# DevTools aliases' "$shell_rc"
     append_line_once 'alias ll="lsd -lah"' "$shell_rc"
     append_line_once 'alias la="lsd -a"' "$shell_rc"
@@ -211,7 +232,24 @@ configure_shell() {
     command_exists kubecolor && append_line_once 'alias kubectl="kubecolor"' "$shell_rc"
     command_exists direnv && append_line_once 'eval "$(direnv hook bash)"' "$HOME/.bashrc"
     command_exists direnv && [[ -f "$HOME/.zshrc" ]] && append_line_once 'eval "$(direnv hook zsh)"' "$HOME/.zshrc"
-    command_exists mise && append_line_once 'eval "$(mise activate zsh)"' "$HOME/.zshrc"
+    if ! $IS_OMARCHY && command_exists mise; then
+        append_line_once 'eval "$(mise activate zsh)"' "$HOME/.zshrc"
+    fi
+
+    local zsh_path current_shell passwd_entry
+    zsh_path="$(command -v zsh 2>/dev/null || true)"
+    if [[ -z "$zsh_path" ]] || ! grep -Fxq "$zsh_path" /etc/shells; then
+        log_error "Cannot set zsh as the default login shell"
+        FAILED+=("zsh default shell")
+        return
+    fi
+
+    passwd_entry="$(getent passwd "$USER" 2>/dev/null || true)"
+    current_shell="${passwd_entry##*:}"
+    if [[ "$current_shell" != "$zsh_path" ]]; then
+        log_info "Setting zsh as the default login shell"
+        run sudo chsh -s "$zsh_path" "$USER" || FAILED+=("zsh default shell")
+    fi
 }
 
 summary() {
@@ -221,7 +259,7 @@ summary() {
         log_error "Failures: ${FAILED[*]}"
         exit 1
     fi
-    log_info "Restart your shell. Log out/in for Docker group membership."
+    log_info "Open a new login session to use zsh and refresh Docker group membership."
 }
 
 main() {

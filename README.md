@@ -1,12 +1,12 @@
 # Linux DevTools Installation Scripts
 
-Install a practical Linux development environment on Ubuntu/Debian and Arch-based systems.
+Install a practical Linux development environment on Ubuntu/Debian and Arch-based systems, including Omarchy.
 
 ## Features
 
 - `install.sh` dispatcher that detects the current distro family
 - `install-ubuntu.sh` for Ubuntu, Debian, Linux Mint, Pop!_OS, and Elementary OS
-- `install-arch.sh` for Arch, Manjaro, EndeavourOS, and Garuda Linux
+- `install-arch.sh` for Arch, Manjaro, EndeavourOS, Garuda Linux, and Omarchy
 - `-y`/`--yes` unattended mode
 - `--dry-run` mode to review commands before changing the system
 - Idempotent shell alias additions and package installs where package managers support it
@@ -115,6 +115,8 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 - Uses `yay` or `paru` only for AUR-only packages: `google-cloud-cli`, `kubecolor`, `visual-studio-code-bin`, `postman-bin`, `brave-bin`, `mongosh-bin`, `mongodb-compass`, and `vagrant`.
 - Installs Python CLI tools through `pipx` to comply with externally managed Python environments.
 - Enables Docker with `systemctl enable --now docker` and adds the current user to the Docker group.
+- Configures `.zshrc` and sets zsh as the current user's default login shell.
+- On Omarchy, installs `omarchy-zsh` to retain the distribution's shell environment and integrations.
 
 ## Options
 
@@ -126,10 +128,11 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 
 ## Post-Install
 
-1. Restart your terminal or source your shell config.
-2. Log out and back in so Docker group membership takes effect.
-3. Authenticate tools as needed: `gh auth login`, `az login`, `aws configure`, `gcloud auth login`.
-4. Review optional tools skipped because a package or AUR helper was unavailable.
+1. On Arch-based systems, open a new login session to start zsh, or run `exec zsh` in the current terminal.
+2. On Ubuntu/Debian, restart the terminal or source the configured shell file.
+3. Log out and back in so Docker group membership takes effect.
+4. Authenticate tools as needed: `gh auth login`, `az login`, `aws configure`, `gcloud auth login`.
+5. Review optional tools skipped because a package or AUR helper was unavailable.
 
 ## Safety
 
