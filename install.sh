@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -u -o pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
 RAW_BASE_URL="${LINUX_DEVTOOLS_RAW_URL:-https://raw.githubusercontent.com/mdiloreto/linux-ubuntu-install-devtools-script/main}"
 
 usage() {
@@ -13,6 +16,7 @@ Linux DevTools installer dispatcher.
 OPTIONS:
     -y, --yes, --no-confirm    Skip confirmation prompts
     --dry-run                  Print planned commands without running them
+    --skip-shell-config        Do not modify shell startup files or login shell
     -h, --help                 Show this help message
 
 EOF
@@ -34,7 +38,7 @@ run_installer() {
     local script="$1"
     shift
 
-    if [[ -r "${SCRIPT_DIR}/${script}" ]]; then
+    if [[ -n "${SCRIPT_DIR}" && -r "${SCRIPT_DIR}/${script}" ]]; then
         exec bash "${SCRIPT_DIR}/${script}" "$@"
     fi
 
@@ -52,7 +56,7 @@ case "${ID}" in
     ubuntu|debian|linuxmint|pop|elementary)
         run_installer install-ubuntu.sh "$@"
         ;;
-    arch|manjaro|endeavouros|garuda)
+    arch|manjaro|endeavouros|garuda|omarchy)
         run_installer install-arch.sh "$@"
         ;;
     *)

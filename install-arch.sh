@@ -3,8 +3,16 @@ set -u -o pipefail
 
 ASSUME_YES=false
 DRY_RUN=false
+SKIP_SHELL_CONFIG=false
 FAILED=()
 SKIPPED=()
+IS_OMARCHY=false
+OMARCHY_ZSH_READY=false
+
+if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+    [[ "${ID:-}" == "omarchy" ]] && IS_OMARCHY=true
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -27,6 +35,7 @@ Install a practical Linux development toolchain on Arch-based systems.
 OPTIONS:
     -y, --yes, --no-confirm    Skip confirmation prompts
     --dry-run                  Print planned commands without running them
+    --skip-shell-config        Do not modify shell startup files or login shell
     -h, --help                 Show this help message
 
 EOF
@@ -37,6 +46,7 @@ parse_args() {
         case "$1" in
             -y|--yes|--no-confirm) ASSUME_YES=true ;;
             --dry-run) DRY_RUN=true ;;
+            --skip-shell-config) SKIP_SHELL_CONFIG=true ;;
             -h|--help) usage; exit 0 ;;
             *) log_error "Unknown option: $1"; usage; exit 1 ;;
         esac
@@ -123,8 +133,14 @@ install_core_tools() {
         openssh openssl ca-certificates gnupg \
         jq yq ripgrep fd fzf tree lsd bat \
         vim neovim nano zsh tmux screen \
-        htop btop ncdu tldr net-tools bind traceroute direnv mise \
+        htop btop ncdu tldr net-tools bind traceroute direnv \
         shellcheck shfmt
+
+    if $IS_OMARCHY; then
+        pacman_install omarchy-zsh && OMARCHY_ZSH_READY=true
+    else
+        pacman_install mise
+    fi
 }
 
 install_languages() {
@@ -137,7 +153,7 @@ install_languages() {
     fi
 
     if command_exists pipx; then
-        run python -m pipx ensurepath || true
+        $SKIP_SHELL_CONFIG || run python -m pipx ensurepath || true
         for tool in pipenv poetry black ruff pytest ipython; do
             command_exists "$tool" || run pipx install "$tool" || true
         done
@@ -170,14 +186,16 @@ install_krew() {
         return
     fi
     run_shell "tmpdir=\$(mktemp -d) && cd \"\$tmpdir\" && os=\$(uname | tr '[:upper:]' '[:lower:]') && arch=\$(uname -m | sed -e 's/x86_64/amd64/' -e 's/aarch64/arm64/') && krew=krew-\${os}_\${arch} && curl -fsSLO https://github.com/kubernetes-sigs/krew/releases/latest/download/\${krew}.tar.gz && tar zxvf \${krew}.tar.gz >/dev/null && ./\${krew} install krew && rm -rf \"\$tmpdir\""
-    append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.zshrc"
-    append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.bashrc"
+    if ! $SKIP_SHELL_CONFIG; then
+        append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.zshrc"
+        append_line_once 'export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"' "$HOME/.bashrc"
+    fi
 }
 
 install_databases() {
     log_info "Installing database clients"
     pacman_install mariadb-clients postgresql-libs redis
-    aur_install mongosh-bin mongodb-compass
+    aur_install mongosh-bin
 }
 
 install_virtualization() {
@@ -200,8 +218,16 @@ install_desktop_tools() {
 
 configure_shell() {
     local shell_rc="$HOME/.zshrc"
-    [[ -f "$shell_rc" ]] || shell_rc="$HOME/.bashrc"
     log_info "Adding shell quality-of-life aliases to $shell_rc"
+    if $IS_OMARCHY; then
+        if ! $OMARCHY_ZSH_READY; then
+            log_warning "Keeping the current login shell because omarchy-zsh is unavailable"
+            return
+        fi
+        append_line_once '[[ -r /usr/share/omarchy/default/bash/env-bootstrap ]] && source /usr/share/omarchy/default/bash/env-bootstrap' "$shell_rc"
+        append_line_once '[[ -r /usr/share/omarchy-zsh/shell/zoptions ]] && source /usr/share/omarchy-zsh/shell/zoptions' "$shell_rc"
+        append_line_once '[[ -r /usr/share/omarchy-zsh/shell/all ]] && source /usr/share/omarchy-zsh/shell/all' "$shell_rc"
+    fi
     append_line_once '# DevTools aliases' "$shell_rc"
     append_line_once 'alias ll="lsd -lah"' "$shell_rc"
     append_line_once 'alias la="lsd -a"' "$shell_rc"
@@ -211,7 +237,26 @@ configure_shell() {
     command_exists kubecolor && append_line_once 'alias kubectl="kubecolor"' "$shell_rc"
     command_exists direnv && append_line_once 'eval "$(direnv hook bash)"' "$HOME/.bashrc"
     command_exists direnv && [[ -f "$HOME/.zshrc" ]] && append_line_once 'eval "$(direnv hook zsh)"' "$HOME/.zshrc"
-    command_exists mise && append_line_once 'eval "$(mise activate zsh)"' "$HOME/.zshrc"
+    if ! $IS_OMARCHY && command_exists mise; then
+        append_line_once 'eval "$(mise activate zsh)"' "$HOME/.zshrc"
+    fi
+
+    local zsh_path current_shell passwd_entry
+    zsh_path="$(command -v zsh 2>/dev/null || true)"
+    if $DRY_RUN && [[ -z "$zsh_path" ]]; then
+        zsh_path="/usr/bin/zsh"
+    elif [[ -z "$zsh_path" ]] || ! grep -Fxq "$zsh_path" /etc/shells; then
+        log_error "Cannot set zsh as the default login shell"
+        FAILED+=("zsh default shell")
+        return
+    fi
+
+    passwd_entry="$(getent passwd "$USER" 2>/dev/null || true)"
+    current_shell="${passwd_entry##*:}"
+    if [[ "$current_shell" != "$zsh_path" ]]; then
+        log_info "Setting zsh as the default login shell"
+        run sudo chsh -s "$zsh_path" "$USER" || FAILED+=("zsh default shell")
+    fi
 }
 
 summary() {
@@ -221,13 +266,20 @@ summary() {
         log_error "Failures: ${FAILED[*]}"
         exit 1
     fi
-    log_info "Restart your shell. Log out/in for Docker group membership."
+    if $SKIP_SHELL_CONFIG; then
+        log_info "Log out/in to refresh Docker group membership."
+    else
+        log_info "Open a new login session to use zsh and refresh Docker group membership."
+    fi
 }
 
 main() {
     parse_args "$@"
     confirm
-    $DRY_RUN || sudo -v
+    if ! $DRY_RUN && ! sudo -v; then
+        log_error "sudo authentication is required to install packages"
+        exit 1
+    fi
     prepare_system
     install_core_tools
     install_languages
@@ -237,7 +289,11 @@ main() {
     install_databases
     install_desktop_tools
     install_virtualization
-    configure_shell
+    if $SKIP_SHELL_CONFIG; then
+        log_info "Skipping shell configuration"
+    else
+        configure_shell
+    fi
     summary
 }
 

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Added Omarchy support through the Arch installer, including the official `omarchy-zsh` integration.
+- Added `--skip-shell-config` to preserve externally managed shell files and login-shell settings.
+
+### Changed
+- The Arch installer now configures zsh as the current user's default login shell.
+
+### Fixed
+- Fixed the documented `curl | bash` installation path when `BASH_SOURCE` is unavailable.
+- Fixed installers continuing into unprivileged operations after sudo authentication fails.
+- Prevented Arch installs from cloning Chromium sources through MongoDB Compass's Electron dependency.
+
 ## [3.0.0] - 2026-09-04
 
 ### Added

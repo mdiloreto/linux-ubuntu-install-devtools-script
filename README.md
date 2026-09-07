@@ -1,14 +1,15 @@
 # Linux DevTools Installation Scripts
 
-Install a practical Linux development environment on Ubuntu/Debian and Arch-based systems.
+Install a practical Linux development environment on Ubuntu/Debian and Arch-based systems, including Omarchy.
 
 ## Features
 
 - `install.sh` dispatcher that detects the current distro family
 - `install-ubuntu.sh` for Ubuntu, Debian, Linux Mint, Pop!_OS, and Elementary OS
-- `install-arch.sh` for Arch, Manjaro, EndeavourOS, and Garuda Linux
+- `install-arch.sh` for Arch, Manjaro, EndeavourOS, Garuda Linux, and Omarchy
 - `-y`/`--yes` unattended mode
 - `--dry-run` mode to review commands before changing the system
+- `--skip-shell-config` mode for systems with externally managed shell files
 - Idempotent shell alias additions and package installs where package managers support it
 
 ## Quick Start
@@ -84,7 +85,7 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 - MySQL client
 - PostgreSQL client (`psql`)
 - Redis CLI
-- MongoDB Compass/mongosh when available for the distro
+- mongosh when available for the distro
 
 ### Optional Virtualization
 
@@ -112,24 +113,29 @@ The current Arch workstation audit was used as the baseline for the refreshed to
 ### Arch
 
 - Uses official `pacman` packages first.
-- Uses `yay` or `paru` only for AUR-only packages: `google-cloud-cli`, `kubecolor`, `visual-studio-code-bin`, `postman-bin`, `brave-bin`, `mongosh-bin`, `mongodb-compass`, and `vagrant`.
+- Uses `yay` or `paru` only for AUR-only packages: `google-cloud-cli`, `kubecolor`, `visual-studio-code-bin`, `postman-bin`, `brave-bin`, `mongosh-bin`, and `vagrant`.
+- Does not install MongoDB Compass automatically because its AUR dependency chain builds Electron from Chromium sources.
 - Installs Python CLI tools through `pipx` to comply with externally managed Python environments.
 - Enables Docker with `systemctl enable --now docker` and adds the current user to the Docker group.
+- Configures `.zshrc` and sets zsh as the current user's default login shell.
+- On Omarchy, installs `omarchy-zsh` to retain the distribution's shell environment and integrations.
 
 ## Options
 
 ```bash
 ./install.sh -y            # unattended install
 ./install.sh --dry-run     # print commands without running them
+./install.sh --skip-shell-config # preserve shell startup files and login shell
 ./install.sh --help        # usage
 ```
 
 ## Post-Install
 
-1. Restart your terminal or source your shell config.
-2. Log out and back in so Docker group membership takes effect.
-3. Authenticate tools as needed: `gh auth login`, `az login`, `aws configure`, `gcloud auth login`.
-4. Review optional tools skipped because a package or AUR helper was unavailable.
+1. Unless `--skip-shell-config` was used, open a new login session to start zsh on Arch-based systems, or restart the terminal on Ubuntu/Debian.
+2. With `--skip-shell-config`, add any required PATH entries and shell integrations through your external configuration manager.
+3. Log out and back in so Docker group membership takes effect.
+4. Authenticate tools as needed: `gh auth login`, `az login`, `aws configure`, `gcloud auth login`.
+5. Review optional tools skipped because a package or AUR helper was unavailable.
 
 ## Safety
 
