@@ -335,7 +335,10 @@ summary() {
 main() {
     parse_args "$@"
     confirm
-    $DRY_RUN || sudo -v
+    if ! $DRY_RUN && ! sudo -v; then
+        log_error "sudo authentication is required to install packages"
+        exit 1
+    fi
     prepare_system
     install_core_tools
     install_github_cli

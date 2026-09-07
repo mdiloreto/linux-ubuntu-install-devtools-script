@@ -243,7 +243,9 @@ configure_shell() {
 
     local zsh_path current_shell passwd_entry
     zsh_path="$(command -v zsh 2>/dev/null || true)"
-    if [[ -z "$zsh_path" ]] || ! grep -Fxq "$zsh_path" /etc/shells; then
+    if $DRY_RUN && [[ -z "$zsh_path" ]]; then
+        zsh_path="/usr/bin/zsh"
+    elif [[ -z "$zsh_path" ]] || ! grep -Fxq "$zsh_path" /etc/shells; then
         log_error "Cannot set zsh as the default login shell"
         FAILED+=("zsh default shell")
         return
@@ -274,7 +276,10 @@ summary() {
 main() {
     parse_args "$@"
     confirm
-    $DRY_RUN || sudo -v
+    if ! $DRY_RUN && ! sudo -v; then
+        log_error "sudo authentication is required to install packages"
+        exit 1
+    fi
     prepare_system
     install_core_tools
     install_languages
