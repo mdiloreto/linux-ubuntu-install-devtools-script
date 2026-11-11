@@ -1,0 +1,20 @@
+name: Installer checks
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-checks:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax and isolated behavior (native Bash)
+        run: /bin/bash .ci/check-installers.sh
+      - name: ShellCheck warnings and errors
+        if: runner.os == 'Linux'
+        run: shellcheck --severity=warning install.sh install-macos.sh install-ubuntu.sh install-arch.sh .ci/check-installers.sh

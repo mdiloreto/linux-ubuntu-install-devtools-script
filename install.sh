@@ -11,7 +11,7 @@ usage() {
     cat <<EOF
 Usage: $0 [OPTIONS]
 
-Linux DevTools installer dispatcher.
+Linux and macOS DevTools installer dispatcher.
 
 OPTIONS:
     -y, --yes, --no-confirm    Skip confirmation prompts
@@ -27,13 +27,6 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     exit 0
 fi
 
-if [[ ! -r /etc/os-release ]]; then
-    echo "Unsupported system: /etc/os-release not found" >&2
-    exit 1
-fi
-
-. /etc/os-release
-
 run_installer() {
     local script="$1"
     shift
@@ -41,6 +34,16 @@ run_installer() {
     if [[ -n "${SCRIPT_DIR}" && -r "${SCRIPT_DIR}/${script}" ]]; then
         exec bash "${SCRIPT_DIR}/${script}" "$@"
     fi
+
+    local arg
+    for arg in "$@"; do
+        if [[ "$arg" == "--dry-run" ]]; then
+            printf '[dry-run] Download %s/%s and run with:' "$RAW_BASE_URL" "$script"
+            printf ' %q' "$@"
+            printf '\nClone the repository for a full offline dry-run.\n'
+            return 0
+        fi
+    done
 
     if command -v curl >/dev/null 2>&1; then
         curl -fsSL "${RAW_BASE_URL}/${script}" | bash -s -- "$@"
@@ -51,6 +54,19 @@ run_installer() {
         exit 1
     fi
 }
+
+case "$(uname -s)" in
+    Darwin) run_installer install-macos.sh "$@"; exit $? ;;
+    Linux) ;;
+    *) echo "Unsupported system: only Linux and macOS are supported" >&2; exit 1 ;;
+esac
+
+if [[ ! -r /etc/os-release ]]; then
+    echo "Unsupported system: /etc/os-release not found" >&2
+    exit 1
+fi
+
+. /etc/os-release
 
 case "${ID}" in
     ubuntu|debian|linuxmint|pop|elementary)

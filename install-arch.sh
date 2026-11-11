@@ -111,6 +111,7 @@ aur_install() {
 }
 
 confirm() {
+    $DRY_RUN && return 0
     $ASSUME_YES && return 0
     if [[ ! -t 0 ]]; then
         log_error "Interactive confirmation is unavailable. Re-run with -y to install."
@@ -118,6 +119,18 @@ confirm() {
     fi
     read -r -p "Install Arch dev tools? [y/N] " response
     [[ "$response" =~ ^[Yy]$ ]] || exit 0
+}
+
+install_herdr() {
+    if command_exists herdr || [[ -x "${HERDR_INSTALL_DIR:-$HOME/.local/bin}/herdr" ]]; then
+        SKIPPED+=("Herdr")
+        return 0
+    fi
+    log_info "Installing Herdr (upstream verifies the binary SHA-256)"
+    run_shell 'tmpdir=$(mktemp -d) || exit 1
+trap '\''rm -rf "$tmpdir"'\'' EXIT
+curl --proto "=https" --tlsv1.2 -fsSL https://herdr.dev/install.sh -o "$tmpdir/install.sh" &&
+sh "$tmpdir/install.sh"' || FAILED+=("Herdr")
 }
 
 prepare_system() {
@@ -181,7 +194,7 @@ install_kubernetes_tools() {
 }
 
 install_krew() {
-    if command_exists kubectl-krew || kubectl krew version >/dev/null 2>&1; then
+    if command_exists kubectl-krew || { ! $DRY_RUN && kubectl krew version >/dev/null 2>&1; }; then
         SKIPPED+=("krew")
         return
     fi
@@ -288,6 +301,7 @@ main() {
     install_kubernetes_tools
     install_databases
     install_desktop_tools
+    install_herdr
     install_virtualization
     if $SKIP_SHELL_CONFIG; then
         log_info "Skipping shell configuration"
@@ -297,4 +311,6 @@ main() {
     summary
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
+    main "$@"
+fi

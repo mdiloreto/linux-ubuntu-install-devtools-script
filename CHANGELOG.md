@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added macOS dispatch and a Bash 3.2-compatible Homebrew installer with OrbStack, Herdr, Ghostty, Ubuntu Mono, LinearMouse, uv-managed Python 3.13, and official Google/AWS SDKs.
+- Added checksum-verifying upstream Herdr installation on Ubuntu/Debian and Arch.
+- Added isolated installer checks and Linux/macOS CI coverage for dispatch, dry-runs, idempotence and runtime failures.
 - Added Omarchy support through the Arch installer, including the official `omarchy-zsh` integration.
 - Added `--skip-shell-config` to preserve externally managed shell files and login-shell settings.
 
@@ -12,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - The Arch installer now configures zsh as the current user's default login shell.
 
 ### Fixed
+- Dry-runs no longer require confirmation, fetch remote installers, or execute Linux package/plugin probes.
 - Fixed the documented `curl | bash` installation path when `BASH_SOURCE` is unavailable.
 - Fixed installers continuing into unprivileged operations after sudo authentication fails.
 - Prevented Arch installs from cloning Chromium sources through MongoDB Compass's Electron dependency.
