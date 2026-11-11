@@ -91,7 +91,7 @@ apt_install() {
 apt_install_if_available() {
     local package
     for package in "$@"; do
-        if apt-cache show "$package" >/dev/null 2>&1; then
+        if $DRY_RUN || apt-cache show "$package" >/dev/null 2>&1; then
             apt_install "$package" || FAILED+=("$package")
         else
             log_warning "APT package not available, skipping: $package"
@@ -101,6 +101,7 @@ apt_install_if_available() {
 }
 
 confirm() {
+    $DRY_RUN && return 0
     $ASSUME_YES && return 0
     if [[ ! -t 0 ]]; then
         log_error "Interactive confirmation is unavailable. Re-run with -y to install."
@@ -108,6 +109,18 @@ confirm() {
     fi
     read -r -p "Install Ubuntu/Debian dev tools? [y/N] " response
     [[ "$response" =~ ^[Yy]$ ]] || exit 0
+}
+
+install_herdr() {
+    if command_exists herdr || [[ -x "${HERDR_INSTALL_DIR:-$HOME/.local/bin}/herdr" ]]; then
+        SKIPPED+=("Herdr")
+        return 0
+    fi
+    log_info "Installing Herdr (upstream verifies the binary SHA-256)"
+    run_shell 'tmpdir=$(mktemp -d) || exit 1
+trap '\''rm -rf "$tmpdir"'\'' EXIT
+curl --proto "=https" --tlsv1.2 -fsSL https://herdr.dev/install.sh -o "$tmpdir/install.sh" &&
+sh "$tmpdir/install.sh"' || FAILED+=("Herdr")
 }
 
 prepare_system() {
@@ -144,7 +157,7 @@ install_github_cli() {
     run sudo mkdir -p /etc/apt/keyrings
     run_shell "curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null"
     run sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-    run_shell "echo 'deb [arch='\"$(dpkg --print-architecture)\"' signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null"
+    run_shell "echo 'deb [arch='\"\$(dpkg --print-architecture)\"' signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null"
     run sudo apt-get update
     apt_install gh
 }
@@ -161,7 +174,7 @@ install_docker() {
     run sudo install -m 0755 -d /etc/apt/keyrings
     run_shell "curl -fsSL https://download.docker.com/linux/${docker_distro}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
     run sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    run_shell "echo 'deb [arch='\"$(dpkg --print-architecture)\"' signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${docker_distro} ${codename} stable' | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null"
+    run_shell "echo 'deb [arch='\"\$(dpkg --print-architecture)\"' signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${docker_distro} ${codename} stable' | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null"
     run sudo apt-get update
     apt_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     run sudo usermod -aG docker "$USER" || true
@@ -217,7 +230,7 @@ install_cloud_iac() {
 
     if ! command_exists terraform; then
         run_shell "wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg"
-        run_shell "echo 'deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com '\"$(lsb_release -cs)\"' main' | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null"
+        run_shell "echo 'deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com '\"\$(lsb_release -cs)\"' main' | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null"
         run sudo apt-get update
         apt_install terraform
     fi
@@ -251,7 +264,7 @@ install_kubernetes_tools() {
 }
 
 install_krew() {
-    if command_exists kubectl-krew || kubectl krew version >/dev/null 2>&1; then
+    if command_exists kubectl-krew || { ! $DRY_RUN && kubectl krew version >/dev/null 2>&1; }; then
         SKIPPED+=("krew")
         return
     fi
@@ -348,6 +361,7 @@ main() {
     install_kubernetes_tools
     install_databases
     install_desktop_tools
+    install_herdr
     install_virtualization
     if $SKIP_SHELL_CONFIG; then
         log_info "Skipping shell configuration"
@@ -357,4 +371,6 @@ main() {
     summary
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
+    main "$@"
+fi
